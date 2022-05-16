@@ -1,37 +1,39 @@
-var exclusions = ["navbarNavDarkDropdown", "navbarDarkDropdownMenuLink"];
+var exclusions = ["navbarNavDarkDropdown", "navbarDarkDropdownMenuLink", "webgazerGazeDot"];
 var array = {};
+var active = false;
 
-const getX = (x) => {
-    return x;
+window.onload = async function () {
+    await webgazer.setRegression('ridge').setTracker('clmtrackr').setGazeListener(function (data, clock) {
+
+        if (data == null) {
+            return;
+        }
+
+        var xprediction = Math.round(data.x);
+        var yprediction = Math.round(data.y);
+
+        xprediction = (xprediction < 0) ? 0 : xprediction;
+        yprediction = (yprediction < 0) ? 0 : yprediction;
+
+        if (active) {
+            addElementToArray(getX(xprediction), getY(yprediction));
+        }
+
+    }).saveDataAcrossSessions(true)
+
+    webgazer.showVideoPreview(false).showPredictionPoints(true).applyKalmanFilter(true).begin();
 };
 
-const getY = (y) => {
-    return y;
-};
+// document.addEventListener('mousemove', function (e) {
+//     var x = e.clientX;
+//     var y = e.clientY;
 
-// window.onload = async function () {
-//     await webgazer.setRegression('ridge').setTracker('clmtrackr').setGazeListener(function (data, clock) {
+//     addElementToArray(x, y);
+// });
 
-//         if (data == null) {
-//             return;
-//         }
-
-//         var xprediction = data.x;
-//         var yprediction = data.y;
-
-//         addElementToArray(getX(xprediction), getY(yprediction));
-
-//     }).saveDataAcrossSessions(true)
-
-//     webgazer.showVideoPreview(true).showPredictionPoints(true).applyKalmanFilter(true).begin();
-// };
-
-document.addEventListener('mousemove', function (e) {
-    var x = e.clientX;
-    var y = e.clientY;
-
-    addElementToArray(x, y);
-});
+function Start() {
+    active = true;
+}
 
 function giveColor() {
     var max;
@@ -62,19 +64,30 @@ function giveColor() {
 
 const addElementToArray = (x, y) => {
     var element = document.elementFromPoint(x, y);
-    if (element.id != "") {
-        if (array[element.id] == undefined) {
-            array[element.id] = 1;
-        } else {
-            array[element.id]++;
+    if (element != null) {
+        if (element.id != "") {
+            if (array[element.id] == undefined) {
+                array[element.id] = 1;
+            } else {
+                array[element.id]++;
+            }
         }
     }
 };
 
 const getGreenToRed = (percent) => {
-    const r = 255 * percent / 100;
-    const g = 255 - (255 * percent / 100);
-    return 'rgb(' + r + ',' + g + ',0)';
+    let r, g;
+    if (percent == 50) {
+        r = 255;
+        g = 255;
+    } else if (percent < 50) {
+        g = 255;
+        r = Math.round(255 * ((percent * 2) / 100));
+    } else {
+        r = 255;
+        g = Math.round(255 * (((100 - percent) * 2) / 100));
+    }
+    return `rgb(${r}, ${g}, 0)`;
 };
 
 const rgbToHex = (rgb) => {
@@ -84,3 +97,40 @@ const rgbToHex = (rgb) => {
         ("0" + parseInt(rgb[2], 10).toString(16)).slice(-2) +
         ("0" + parseInt(rgb[3], 10).toString(16)).slice(-2);
 };
+
+function Kill() {
+    webgazer.pause();
+    webgazer.showPredictionPoints(false);
+    webgazer.showVideoPreview(false);
+    webgazer.end();
+    giveColor();
+    var data = [];
+    for (var key in array) {
+        if (!exclusions.includes(key)) {
+            data.push({
+                "id": key,
+                "count": array[key],
+                "innerHtml": document.getElementById(key).outerHTML
+            });
+        }
+    }
+    download(JSON.stringify(data), "data.json", "text/plain");
+}
+
+function download(data, filename, type) {
+    var file = new Blob([data], {type: type});
+    if (window.navigator.msSaveOrOpenBlob)
+        window.navigator.msSaveOrOpenBlob(file, filename);
+    else {
+        var a  = document.createElement("a"),
+                url = URL.createObjectURL(file);
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function() {
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);  
+        }, 0); 
+    }
+}
