@@ -2,6 +2,7 @@ var exclusions = ["navbarNavDarkDropdown", "navbarDarkDropdownMenuLink", "webgaz
 var array = {};
 var active = false;
 
+// Webgazer initialization
 window.onload = async function () {
     await webgazer.setRegression('ridge').setTracker('clmtrackr').setGazeListener(function (data, clock) {
 
@@ -9,14 +10,8 @@ window.onload = async function () {
             return;
         }
 
-        var xprediction = Math.round(data.x);
-        var yprediction = Math.round(data.y);
-
-        xprediction = (xprediction < 0) ? 0 : xprediction;
-        yprediction = (yprediction < 0) ? 0 : yprediction;
-
         if (active) {
-            addElementToArray(getX(xprediction), getY(yprediction));
+            addElementToArray(getNumber(data.x), getNumber(data.y));
         }
 
     }).saveDataAcrossSessions(true)
@@ -24,6 +19,7 @@ window.onload = async function () {
     webgazer.showVideoPreview(false).showPredictionPoints(true).applyKalmanFilter(true).begin();
 };
 
+//Mousemove event (just for testing)
 // document.addEventListener('mousemove', function (e) {
 //     var x = e.clientX;
 //     var y = e.clientY;
@@ -33,6 +29,11 @@ window.onload = async function () {
 
 function Start() {
     active = true;
+}
+
+function getNumber(num) {
+    num = Math.round(num);
+    return (num < 0) ? 0 : num;
 }
 
 function giveColor() {
